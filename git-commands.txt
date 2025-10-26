@@ -1,0 +1,19 @@
+# Git Commands to Publish Your RPG Game
+
+# 1. Initialize git in your project folder
+git init
+
+# 2. Add all files
+git add .
+
+# 3. Make your first commit
+git commit -m "Initial commit - Visual RPG Game"
+
+# 4. Connect to your GitHub repository (replace with your actual repo URL)
+git remote add origin https://github.com/yourusername/visual-rpg-game.git
+
+# 5. Push to GitHub
+git push -u origin main
+
+# Note: Replace "yourusername" with your actual GitHub username
+# Create the repository on GitHub.com first before running these commands

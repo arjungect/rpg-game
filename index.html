@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPG Game Collection</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 40px;
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+        
+        .game-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: transform 0.3s ease;
+        }
+        
+        .game-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .game-title {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            color: #ffd700;
+        }
+        
+        .game-description {
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        .play-button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .play-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        
+        .features {
+            text-align: left;
+            margin: 15px 0;
+        }
+        
+        .features li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗡️ RPG Game Collection ⚔️</h1>
+        <p>Choose your adventure! Two different RPG experiences await you.</p>
+        
+        <div class="game-grid">
+            <div class="game-card">
+                <div class="game-title">🎮 Visual RPG Adventure</div>
+                <div class="game-description">
+                    A fully visual 2D RPG with graphics, animations, and real-time combat!
+                </div>
+                <ul class="features">
+                    <li>🎨 2D Graphics with human-like characters</li>
+                    <li>⚔️ Real-time combat system</li>
+                    <li>🏃‍♂️ WASD movement controls</li>
+                    <li>👾 Moving enemies and treasure chests</li>
+                    <li>📊 Visual health bars and effects</li>
+                </ul>
+                <a href="visual-rpg.html" class="play-button">🎮 Play Visual RPG</a>
+            </div>
+            
+            <div class="game-card">
+                <div class="game-title">📜 Classic Text RPG</div>
+                <div class="game-description">
+                    A traditional text-based RPG with rich storytelling and strategic gameplay!
+                </div>
+                <ul class="features">
+                    <li>📖 Rich text-based storytelling</li>
+                    <li>🎲 Turn-based strategic combat</li>
+                    <li>🎒 Detailed inventory system</li>
+                    <li>🌟 Beautiful UI with animations</li>
+                    <li>🧙‍♂️ Deep character progression</li>
+                </ul>
+                <a href="rpg-game.html" class="play-button">📜 Play Text RPG</a>
+            </div>
+        </div>
+        
+        <div style="margin-top: 50px; opacity: 0.8;">
+            <p>🚀 Built with HTML5, CSS3, and JavaScript</p>
+            <p>No downloads required - runs in any modern web browser!</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual RPG Adventure</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #1a1a2e;
+            color: white;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .game-title {
+            font-size: 2em;
+            color: #f39c12;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .game-container {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        
+        canvas {
+            border: 3px solid #533483;
+            border-radius: 10px;
+            background-color: #0f3460;
+        }
+        
+        .ui-panel {
+            background-color: #16213e;
+            padding: 20px;
+            border-radius: 10px;
+            width: 300px;
+            border: 2px solid #533483;
+        }
+        
+        .stats {
+            background-color: #0f3460;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .health-bar {
+            background-color: #333;
+            border-radius: 10px;
+            height: 20px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        
+        .health-fill {
+            background-color: #e74c3c;
+            height: 100%;
+            transition: width 0.3s;
+        }
+        
+        .controls {
+            background-color: #0f3460;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .log {
+            background-color: #0f3460;
+            padding: 15px;
+            border-radius: 5px;
+            height: 200px;
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        button {
+            background-color: #533483;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-family: inherit;
+        }
+        
+        button:hover {
+            background-color: #6c5ce7;
+        }
+        
+        .enemy {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        
+        .treasure {
+            color: #f39c12;
+            font-weight: bold;
+        }
+        
+        .level-up {
+            color: #27ae60;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="game-title">🗡️ VISUAL RPG ADVENTURE ⚔️</h1>
+    
+    <div class="game-container">
+        <!-- Game Canvas -->
+        <canvas id="gameCanvas" width="600" height="400"></canvas>
+        
+        <!-- UI Panel -->
+        <div class="ui-panel">
+            <!-- Player Stats -->
+            <div class="stats">
+                <div id="player-info">Create your character!</div>
+                <div class="health-bar">
+                    <div class="health-fill" id="health-bar" style="width: 100%"></div>
+                </div>
+                <div id="exp-info">Experience: 0/100</div>
+            </div>
+            
+            <!-- Controls -->
+            <div class="controls">
+                <strong>Controls:</strong><br>
+                WASD or Arrow Keys - Move<br>
+                SPACE - Interact/Attack<br>
+                E - Use Health Potion<br><br>
+                
+                <button onclick="showInventory()">📦 Inventory</button>
+                <button onclick="rest()">😴 Rest</button>
+            </div>
+            
+            <!-- Game Log -->
+            <div class="log" id="game-log">
+                Welcome to Visual RPG Adventure!<br>
+                Click "Start Game" to begin your quest!<br><br>
+                <button onclick="startCharacterCreation()">🎮 Start Game</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get the canvas and drawing context
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Game variables
+        let player = null;
+        let enemies = [];
+        let treasures = [];
+        let gameStarted = false;
+        let keys = {};
+        
+        // Game world settings
+        const TILE_SIZE = 32;
+        const WORLD_WIDTH = canvas.width;
+        const WORLD_HEIGHT = canvas.height;
+        
+        // Player class with visual representation
+        class Player {
+            constructor(name, playerClass, x, y) {
+                this.name = name;
+                this.class = playerClass;
+                this.x = x;
+                this.y = y;
+                this.width = 24;
+                this.height = 32;
+                this.speed = 2;
+                
+                // Stats
+                this.level = 1;
+                this.experience = 0;
+                this.experienceToNext = 100;
+                this.gold = 50;
+                this.inventory = [];
+                
+                // Set class stats
+                this.setClassStats(playerClass);
+                
+                // Animation
+                this.facing = 'down';
+                this.animFrame = 0;
+                this.animTimer = 0;
+            }
+            
+            setClassStats(playerClass) {
+                switch(playerClass) {
+                    case 'Warrior':
+                        this.maxHealth = 120;
+                        this.health = 120;
+                        this.attack = 15;
+                        this.defense = 8;
+                        this.color = '#3498db'; // Blue
+                        break;
+                    case 'Mage':
+                        this.maxHealth = 80;
+                        this.health = 80;
+                        this.attack = 20;
+                        this.defense = 5;
+                        this.color = '#9b59b6'; // Purple
+                        this.inventory.push('Health Potion');
+                        break;
+                    case 'Rogue':
+                        this.maxHealth = 100;
+                        this.health = 100;
+                        this.attack = 18;
+                        this.defense = 6;
+                        this.color = '#27ae60'; // Green
+                        this.gold += 25;
+                        break;
+                }
+            }
+            
+            update() {
+                let moving = false;
+                
+                // Movement
+                if (keys['w'] || keys['ArrowUp']) {
+                    this.y -= this.speed;
+                    this.facing = 'up';
+                    moving = true;
+                }
+                if (keys['s'] || keys['ArrowDown']) {
+                    this.y += this.speed;
+                    this.facing = 'down';
+                    moving = true;
+                }
+                if (keys['a'] || keys['ArrowLeft']) {
+                    this.x -= this.speed;
+                    this.facing = 'left';
+                    moving = true;
+                }
+                if (keys['d'] || keys['ArrowRight']) {
+                    this.x += this.speed;
+                    this.facing = 'right';
+                    moving = true;
+                }
+                
+                // Keep player on screen
+                this.x = Math.max(0, Math.min(WORLD_WIDTH - this.width, this.x));
+                this.y = Math.max(0, Math.min(WORLD_HEIGHT - this.height, this.y));
+                
+                // Animation
+                if (moving) {
+                    this.animTimer++;
+                    if (this.animTimer > 10) {
+                        this.animFrame = (this.animFrame + 1) % 4;
+                        this.animTimer = 0;
+                    }
+                }
+                
+                // Check collisions
+                this.checkCollisions();
+            }
+            
+            checkCollisions() {
+                // Check enemy collisions
+                for (let i = enemies.length - 1; i >= 0; i--) {
+                    let enemy = enemies[i];
+                    if (this.isColliding(enemy)) {
+                        this.fightEnemy(enemy, i);
+                        break;
+                    }
+                }
+                
+                // Check treasure collisions
+                for (let i = treasures.length - 1; i >= 0; i--) {
+                    let treasure = treasures[i];
+                    if (this.isColliding(treasure)) {
+                        this.collectTreasure(treasure, i);
+                    }
+                }
+            }
+            
+            isColliding(obj) {
+                return this.x < obj.x + obj.width &&
+                       this.x + this.width > obj.x &&
+                       this.y < obj.y + obj.height &&
+                       this.y + this.height > obj.y;
+            }
+            
+            fightEnemy(enemy, index) {
+                // Simple combat
+                let playerDamage = this.attack + Math.floor(Math.random() * 6) - 2;
+                let enemyDamage = enemy.attack + Math.floor(Math.random() * 4) - 1;
+                
+                // Critical hit chance
+                if (Math.random() < (this.class === 'Rogue' ? 0.2 : 0.1)) {
+                    playerDamage *= 2;
+                    logMessage(`💥 Critical hit! You deal ${playerDamage} damage to ${enemy.name}!`);
+                } else {
+                    logMessage(`⚔️ You attack ${enemy.name} for ${playerDamage} damage!`);
+                }
+                
+                enemy.health -= playerDamage;
+                
+                if (enemy.health <= 0) {
+                    // Enemy defeated
+                    let expGain = 20 + Math.floor(Math.random() * 10);
+                    let goldGain = 10 + Math.floor(Math.random() * 15);
+                    
+                    logMessage(`🎉 You defeated ${enemy.name}!`, 'level-up');
+                    logMessage(`Gained ${expGain} XP and ${goldGain} gold!`);
+                    
+                    this.gainExperience(expGain);
+                    this.gold += goldGain;
+                    enemies.splice(index, 1);
+                    
+                    // Chance for potion drop
+                    if (Math.random() < 0.3) {
+                        this.inventory.push('Health Potion');
+                        logMessage('Found a Health Potion!', 'treasure');
+                    }
+                } else {
+                    // Enemy attacks back
+                    let actualDamage = Math.max(1, enemyDamage - this.defense);
+                    this.health -= actualDamage;
+                    logMessage(`${enemy.name} attacks you for ${actualDamage} damage!`, 'enemy');
+                    
+                    if (this.health <= 0) {
+                        this.health = 0;
+                        logMessage('💀 You have been defeated! Game Over!', 'enemy');
+                        gameStarted = false;
+                    }
+                }
+                
+                updateUI();
+            }
+            
+            collectTreasure(treasure, index) {
+                this.gold += treasure.value;
+                logMessage(`💰 Found ${treasure.value} gold!`, 'treasure');
+                
+                if (Math.random() < 0.4) {
+                    this.inventory.push('Health Potion');
+                    logMessage('Found a Health Potion!', 'treasure');
+                }
+                
+                treasures.splice(index, 1);
+                updateUI();
+            }
+            
+            gainExperience(exp) {
+                this.experience += exp;
+                while (this.experience >= this.experienceToNext) {
+                    this.levelUp();
+                }
+            }
+            
+            levelUp() {
+                this.experience -= this.experienceToNext;
+                this.level++;
+                
+                let healthIncrease = 15 + (this.level * 2);
+                this.maxHealth += healthIncrease;
+                this.health = this.maxHealth;
+                this.attack += 3;
+                this.defense += 2;
+                this.experienceToNext = 100 + (this.level * 25);
+                
+                logMessage(`🎉 LEVEL UP! Now level ${this.level}!`, 'level-up');
+                logMessage(`Health +${healthIncrease}, Attack +3, Defense +2`, 'level-up');
+            }
+            
+            useHealthPotion() {
+                let potionIndex = this.inventory.indexOf('Health Potion');
+                if (potionIndex !== -1) {
+                    this.inventory.splice(potionIndex, 1);
+                    let healAmount = 30;
+                    this.health = Math.min(this.maxHealth, this.health + healAmount);
+                    logMessage(`🧪 Used Health Potion! Healed ${healAmount} HP!`);
+                    updateUI();
+                    return true;
+                }
+                logMessage('No Health Potions in inventory!');
+                return false;
+            }
+            
+            draw() {
+                // Draw player as a simple human-like figure
+                ctx.save();
+                
+                // Body (rectangle)
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x + 6, this.y + 8, 12, 16);
+                
+                // Head (circle)
+                ctx.fillStyle = '#fdbcb4'; // Skin color
+                ctx.beginPath();
+                ctx.arc(this.x + 12, this.y + 6, 6, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Eyes
+                ctx.fillStyle = 'black';
+                ctx.fillRect(this.x + 9, this.y + 4, 2, 2);
+                ctx.fillRect(this.x + 13, this.y + 4, 2, 2);
+                
+                // Arms
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x + 2, this.y + 10, 4, 8);
+                ctx.fillRect(this.x + 18, this.y + 10, 4, 8);
+                
+                // Legs
+                ctx.fillRect(this.x + 7, this.y + 24, 4, 8);
+                ctx.fillRect(this.x + 13, this.y + 24, 4, 8);
+                
+                // Weapon indicator
+                if (this.class === 'Warrior') {
+                    // Sword
+                    ctx.fillStyle = '#95a5a6';
+                    ctx.fillRect(this.x + 20, this.y + 5, 2, 12);
+                    ctx.fillStyle = '#34495e';
+                    ctx.fillRect(this.x + 19, this.y + 4, 4, 3);
+                } else if (this.class === 'Mage') {
+                    // Staff
+                    ctx.fillStyle = '#8b4513';
+                    ctx.fillRect(this.x + 21, this.y + 2, 2, 15);
+                    ctx.fillStyle = '#9b59b6';
+                    ctx.beginPath();
+                    ctx.arc(this.x + 22, this.y + 2, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (this.class === 'Rogue') {
+                    // Dagger
+                    ctx.fillStyle = '#95a5a6';
+                    ctx.fillRect(this.x + 20, this.y + 8, 2, 6);
+                    ctx.fillStyle = '#34495e';
+                    ctx.fillRect(this.x + 19, this.y + 7, 4, 2);
+                }
+                
+                // Health bar above player
+                if (this.health < this.maxHealth) {
+                    let barWidth = 24;
+                    let barHeight = 4;
+                    let healthPercent = this.health / this.maxHealth;
+                    
+                    // Background
+                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                    ctx.fillRect(this.x, this.y - 8, barWidth, barHeight);
+                    
+                    // Health
+                    ctx.fillStyle = healthPercent > 0.5 ? '#27ae60' : healthPercent > 0.25 ? '#f39c12' : '#e74c3c';
+                    ctx.fillRect(this.x, this.y - 8, barWidth * healthPercent, barHeight);
+                }
+                
+                ctx.restore();
+            }
+        }
+        
+        // Enemy class
+        class Enemy {
+            constructor(name, x, y, health, attack, color) {
+                this.name = name;
+                this.x = x;
+                this.y = y;
+                this.width = 24;
+                this.height = 24;
+                this.health = health;
+                this.maxHealth = health;
+                this.attack = attack;
+                this.color = color;
+                this.moveTimer = 0;
+                this.moveDirection = Math.random() * Math.PI * 2;
+            }
+            
+            update() {
+                // Simple AI - move randomly
+                this.moveTimer++;
+                if (this.moveTimer > 60) {
+                    this.moveDirection = Math.random() * Math.PI * 2;
+                    this.moveTimer = 0;
+                }
+                
+                this.x += Math.cos(this.moveDirection) * 0.5;
+                this.y += Math.sin(this.moveDirection) * 0.5;
+                
+                // Keep on screen
+                this.x = Math.max(0, Math.min(WORLD_WIDTH - this.width, this.x));
+                this.y = Math.max(0, Math.min(WORLD_HEIGHT - this.height, this.y));
+            }
+            
+            draw() {
+                // Draw enemy as a simple creature
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                
+                // Eyes
+                ctx.fillStyle = 'red';
+                ctx.fillRect(this.x + 4, this.y + 4, 4, 4);
+                ctx.fillRect(this.x + 16, this.y + 4, 4, 4);
+                
+                // Health bar
+                if (this.health < this.maxHealth) {
+                    let barWidth = 24;
+                    let barHeight = 3;
+                    let healthPercent = this.health / this.maxHealth;
+                    
+                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                    ctx.fillRect(this.x, this.y - 6, barWidth, barHeight);
+                    
+                    ctx.fillStyle = '#e74c3c';
+                    ctx.fillRect(this.x, this.y - 6, barWidth * healthPercent, barHeight);
+                }
+            }
+        }
+        
+        // Treasure class
+        class Treasure {
+            constructor(x, y, value) {
+                this.x = x;
+                this.y = y;
+                this.width = 16;
+                this.height = 16;
+                this.value = value;
+                this.sparkle = 0;
+            }
+            
+            update() {
+                this.sparkle += 0.1;
+            }
+            
+            draw() {
+                // Draw treasure chest
+                ctx.fillStyle = '#8b4513';
+                ctx.fillRect(this.x, this.y + 8, this.width, 8);
+                
+                ctx.fillStyle = '#f39c12';
+                ctx.fillRect(this.x, this.y, this.width, 8);
+                
+                // Lock
+                ctx.fillStyle = '#34495e';
+                ctx.fillRect(this.x + 6, this.y + 2, 4, 4);
+                
+                // Sparkle effect
+                let sparkleSize = Math.sin(this.sparkle) * 2 + 2;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.fillRect(this.x - sparkleSize, this.y - sparkleSize, sparkleSize * 2, sparkleSize * 2);
+            }
+        }
+        
+        // Game functions
+        function startCharacterCreation() {
+            document.getElementById('game-log').innerHTML = `
+                Choose your character class:<br><br>
+                <button onclick="createPlayer('Warrior')">🛡️ Warrior</button>
+                <button onclick="createPlayer('Mage')">🔮 Mage</button>
+                <button onclick="createPlayer('Rogue')">🗡️ Rogue</button>
+            `;
+        }
+        
+        function createPlayer(playerClass) {
+            let name = prompt(`Enter your ${playerClass}'s name:`) || 'Hero';
+            player = new Player(name, playerClass, 50, 50);
+            gameStarted = true;
+            
+            // Spawn initial enemies and treasures
+            spawnEnemies();
+            spawnTreasures();
+            
+            logMessage(`Welcome, ${name} the ${playerClass}!`, 'level-up');
+            logMessage('Use WASD to move, SPACE to attack, E for potions!');
+            updateUI();
+            
+            // Start game loop
+            gameLoop();
+        }
+        
+        function spawnEnemies() {
+            enemies = [];
+            let enemyTypes = [
+                {name: 'Goblin', health: 25, attack: 8, color: '#2ecc71'},
+                {name: 'Orc', health: 40, attack: 12, color: '#e74c3c'},
+                {name: 'Skeleton', health: 30, attack: 10, color: '#95a5a6'}
+            ];
+            
+            for (let i = 0; i < 3; i++) {
+                let type = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
+                let x = Math.random() * (WORLD_WIDTH - 100) + 50;
+                let y = Math.random() * (WORLD_HEIGHT - 100) + 50;
+                
+                // Make sure not too close to player
+                while (Math.abs(x - player.x) < 100 && Math.abs(y - player.y) < 100) {
+                    x = Math.random() * (WORLD_WIDTH - 100) + 50;
+                    y = Math.random() * (WORLD_HEIGHT - 100) + 50;
+                }
+                
+                enemies.push(new Enemy(type.name, x, y, type.health, type.attack, type.color));
+            }
+        }
+        
+        function spawnTreasures() {
+            treasures = [];
+            for (let i = 0; i < 2; i++) {
+                let x = Math.random() * (WORLD_WIDTH - 50) + 25;
+                let y = Math.random() * (WORLD_HEIGHT - 50) + 25;
+                let value = Math.floor(Math.random() * 30) + 20;
+                
+                treasures.push(new Treasure(x, y, value));
+            }
+        }
+        
+        function gameLoop() {
+            if (!gameStarted) return;
+            
+            // Clear canvas
+            ctx.fillStyle = '#2c5530'; // Forest green background
+            ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+            
+            // Draw grass pattern
+            ctx.fillStyle = '#1e3a20';
+            for (let x = 0; x < WORLD_WIDTH; x += 40) {
+                for (let y = 0; y < WORLD_HEIGHT; y += 40) {
+                    if ((x + y) % 80 === 0) {
+                        ctx.fillRect(x, y, 20, 20);
+                    }
+                }
+            }
+            
+            // Update and draw game objects
+            if (player) {
+                player.update();
+                player.draw();
+            }
+            
+            enemies.forEach(enemy => {
+                enemy.update();
+                enemy.draw();
+            });
+            
+            treasures.forEach(treasure => {
+                treasure.update();
+                treasure.draw();
+            });
+            
+            // Spawn new enemies if all defeated
+            if (enemies.length === 0) {
+                setTimeout(spawnEnemies, 2000);
+                logMessage('New enemies approach!', 'enemy');
+            }
+            
+            // Spawn new treasures occasionally
+            if (treasures.length === 0 && Math.random() < 0.01) {
+                spawnTreasures();
+                logMessage('New treasures have appeared!', 'treasure');
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function logMessage(message, className = '') {
+            const log = document.getElementById('game-log');
+            const messageDiv = document.createElement('div');
+            messageDiv.innerHTML = message;
+            if (className) messageDiv.className = className;
+            log.appendChild(messageDiv);
+            log.scrollTop = log.scrollHeight;
+            
+            // Keep only last 20 messages
+            while (log.children.length > 20) {
+                log.removeChild(log.firstChild);
+            }
+        }
+        
+        function updateUI() {
+            if (!player) return;
+            
+            document.getElementById('player-info').innerHTML = 
+                `${player.name} the ${player.class} | Level ${player.level} | Gold: ${player.gold}`;
+            
+            let healthPercent = (player.health / player.maxHealth) * 100;
+            document.getElementById('health-bar').style.width = healthPercent + '%';
+            
+            document.getElementById('exp-info').innerHTML = 
+                `Experience: ${player.experience}/${player.experienceToNext}`;
+        }
+        
+        function showInventory() {
+            if (!player) return;
+            
+            let inventoryText = 'Inventory:<br>';
+            if (player.inventory.length === 0) {
+                inventoryText += 'Empty';
+            } else {
+                player.inventory.forEach((item, index) => {
+                    inventoryText += `${index + 1}. ${item}<br>`;
+                });
+            }
+            logMessage(inventoryText);
+        }
+        
+        function rest() {
+            if (!player) return;
+            
+            let healAmount = Math.floor(player.maxHealth * 0.3);
+            player.health = Math.min(player.maxHealth, player.health + healAmount);
+            logMessage(`😴 You rest and recover ${healAmount} health.`);
+            updateUI();
+        }
+        
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            
+            if (e.key === ' ' && player) {
+                e.preventDefault();
+                // Space bar - attack nearest enemy
+                let nearestEnemy = null;
+                let nearestDistance = Infinity;
+                
+                enemies.forEach(enemy => {
+                    let distance = Math.sqrt(
+                        Math.pow(player.x - enemy.x, 2) + 
+                        Math.pow(player.y - enemy.y, 2)
+                    );
+                    if (distance < nearestDistance && distance < 50) {
+                        nearestDistance = distance;
+                        nearestEnemy = enemy;
+                    }
+                });
+                
+                if (nearestEnemy) {
+                    let index = enemies.indexOf(nearestEnemy);
+                    player.fightEnemy(nearestEnemy, index);
+                }
+            }
+            
+            if (e.key.toLowerCase() === 'e' && player) {
+                player.useHealthPotion();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+        
+        // Initial message
+        logMessage('Welcome to Visual RPG Adventure!');
+        logMessage('Create your character to begin your quest!');
+    </script>
+</body>
+</html>

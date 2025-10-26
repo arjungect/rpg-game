@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adventure Quest RPG</title>
+    <style>
+        /* This makes our game look nice */
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #1a1a2e;
+            color: #eee;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .game-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #16213e;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        
+        .title {
+            text-align: center;
+            color: #f39c12;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .stats {
+            background-color: #0f3460;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #f39c12;
+        }
+        
+        .game-text {
+            background-color: #0f3460;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            min-height: 200px;
+            border: 1px solid #533483;
+        }
+        
+        .buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        button {
+            background-color: #533483;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-family: inherit;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #6c5ce7;
+        }
+        
+        button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
+        
+        input {
+            background-color: #0f3460;
+            color: white;
+            border: 1px solid #533483;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: inherit;
+            font-size: 16px;
+            margin: 5px;
+        }
+        
+        .health-bar {
+            background-color: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            height: 20px;
+            margin: 5px 0;
+        }
+        
+        .health-fill {
+            background-color: #e74c3c;
+            height: 100%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1 class="title">🗡️ ADVENTURE QUEST RPG ⚔️</h1>
+        
+        <!-- Player Stats Display -->
+        <div class="stats" id="stats">
+            <div id="player-info">Welcome, adventurer!</div>
+            <div class="health-bar">
+                <div class="health-fill" id="health-bar" style="width: 100%"></div>
+            </div>
+        </div>
+        
+        <!-- Main Game Text Area -->
+        <div class="game-text" id="game-text">
+            Welcome to Adventure Quest RPG!<br><br>
+            You are about to embark on an epic adventure. Create your character to begin!
+        </div>
+        
+        <!-- Game Buttons -->
+        <div class="buttons" id="buttons">
+            <button onclick="startGame()">Start Adventure</button>
+        </div>
+    </div>
+
+    <script>
+        // This is JavaScript - it makes our game interactive!
+        
+        // Game variables (these store our game data)
+        let player = null;
+        let gameState = 'start';
+        let currentLevel = 1;
+        
+        // Player class - this creates our character
+        class Player {
+            constructor(name, playerClass) {
+                this.name = name;
+                this.class = playerClass;
+                this.level = 1;
+                this.experience = 0;
+                this.experienceToNext = 100;
+                this.gold = 50;
+                this.inventory = [];
+                
+                // Set stats based on class
+                this.setClassStats(playerClass);
+            }
+            
+            // Different classes have different strengths
+            setClassStats(playerClass) {
+                switch(playerClass) {
+                    case 'Warrior':
+                        this.maxHealth = 120;
+                        this.health = 120;
+                        this.attack = 15;
+                        this.defense = 8;
+                        break;
+                    case 'Mage':
+                        this.maxHealth = 80;
+                        this.health = 80;
+                        this.attack = 20;
+                        this.defense = 5;
+                        this.inventory.push('Health Potion');
+                        break;
+                    case 'Rogue':
+                        this.maxHealth = 100;
+                        this.health = 100;
+                        this.attack = 18;
+                        this.defense = 6;
+                        this.gold += 25;
+                        break;
+                }
+            }
+            
+            // Attack method - returns damage dealt
+            attackEnemy() {
+                let baseDamage = this.attack + Math.floor(Math.random() * 7) - 3; // ±3 random
+                
+                // Critical hit chance (20% for Rogue, 10% for others)
+                let critChance = this.class === 'Rogue' ? 0.2 : 0.1;
+                if (Math.random() < critChance) {
+                    baseDamage *= 2;
+                    addToGameText("💥 CRITICAL HIT!");
+                }
+                
+                return Math.max(1, baseDamage);
+            }
+            
+            // Take damage
+            takeDamage(damage) {
+                let actualDamage = Math.max(1, damage - this.defense);
+                this.health -= actualDamage;
+                if (this.health < 0) this.health = 0;
+                return actualDamage;
+            }
+            
+            // Heal player
+            heal(amount) {
+                this.health += amount;
+                if (this.health > this.maxHealth) this.health = this.maxHealth;
+            }
+            
+            // Use health potion
+            useHealthPotion() {
+                let potionIndex = this.inventory.indexOf('Health Potion');
+                if (potionIndex !== -1) {
+                    this.inventory.splice(potionIndex, 1);
+                    this.heal(30);
+                    return true;
+                }
+                return false;
+            }
+            
+            // Gain experience and level up
+            gainExperience(exp) {
+                this.experience += exp;
+                while (this.experience >= this.experienceToNext) {
+                    this.levelUp();
+                }
+            }
+            
+            // Level up!
+            levelUp() {
+                this.experience -= this.experienceToNext;
+                this.level++;
+                
+                let healthIncrease = 15 + (this.level * 2);
+                this.maxHealth += healthIncrease;
+                this.health = this.maxHealth; // Full heal
+                this.attack += 3;
+                this.defense += 2;
+                this.experienceToNext = 100 + (this.level * 25);
+                
+                addToGameText(`🎉 LEVEL UP! You are now level ${this.level}!`);
+                addToGameText(`Health +${healthIncrease}, Attack +3, Defense +2`);
+            }
+            
+            // Check if alive
+            isAlive() {
+                return this.health > 0;
+            }
+        }
+        
+        // Functions that control the game
+        
+        function startGame() {
+            setGameText("Welcome, brave adventurer!<br><br>What is your name?");
+            setButtons(`
+                <input type="text" id="player-name" placeholder="Enter your name" maxlength="20">
+                <button onclick="chooseName()">Continue</button>
+            `);
+        }
+        
+        function chooseName() {
+            let name = document.getElementById('player-name').value.trim();
+            if (!name) name = 'Hero';
+            
+            setGameText(`Welcome, ${name}!<br><br>Choose your class:<br><br>
+                🛡️ <strong>Warrior</strong> - High health and defense, strong in combat<br>
+                🔮 <strong>Mage</strong> - Powerful magic attacks, starts with a potion<br>
+                🗡️ <strong>Rogue</strong> - Fast and sneaky, critical hits and extra gold`);
+            
+            setButtons(`
+                <button onclick="createPlayer('${name}', 'Warrior')">🛡️ Warrior</button>
+                <button onclick="createPlayer('${name}', 'Mage')">🔮 Mage</button>
+                <button onclick="createPlayer('${name}', 'Rogue')">🗡️ Rogue</button>
+            `);
+        }
+        
+        function createPlayer(name, playerClass) {
+            player = new Player(name, playerClass);
+            gameState = 'playing';
+            
+            setGameText(`Welcome, ${name} the ${playerClass}!<br><br>
+                Your adventure begins in the Dark Forest. Ancient treasures and dangerous creatures await!<br><br>
+                What would you like to do?`);
+            
+            showMainMenu();
+            updateStats();
+        }
+        
+        function showMainMenu() {
+            setButtons(`
+                <button onclick="explore()">🌲 Explore</button>
+                <button onclick="showStatus()">📊 Status</button>
+                <button onclick="showInventory()">🎒 Inventory</button>
+                <button onclick="rest()">😴 Rest</button>
+            `);
+        }
+        
+        function explore() {
+            addToGameText("You venture deeper into the forest...");
+            
+            let encounter = Math.floor(Math.random() * 3) + 1;
+            
+            setTimeout(() => {
+                switch(encounter) {
+                    case 1:
+                        findTreasure();
+                        break;
+                    case 2:
+                        fightEnemy();
+                        break;
+                    case 3:
+                        findNothing();
+                        break;
+                }
+            }, 1000);
+        }
+        
+        function findTreasure() {
+            let gold = Math.floor(Math.random() * 21) + 10; // 10-30 gold
+            player.gold += gold;
+            
+            addToGameText(`💰 You found a treasure chest with ${gold} gold!`);
+            
+            // 25% chance for potion
+            if (Math.random() < 0.25) {
+                player.inventory.push('Health Potion');
+                addToGameText("🧪 You also found a Health Potion!");
+            }
+            
+            updateStats();
+            setTimeout(showMainMenu, 2000);
+        }
+        
+        function findNothing() {
+            let messages = [
+                "You search around but find nothing interesting.",
+                "You hear strange noises but see nothing.",
+                "The forest is eerily quiet here.",
+                "You find some old bones, but nothing valuable."
+            ];
+            
+            addToGameText(messages[Math.floor(Math.random() * messages.length)]);
+            setTimeout(showMainMenu, 2000);
+        }
+        
+        function fightEnemy() {
+            let enemies = ['Goblin', 'Wolf', 'Skeleton', 'Orc'];
+            let enemyName = enemies[Math.floor(Math.random() * enemies.length)];
+            let enemyHealth = Math.floor(Math.random() * 21) + 20; // 20-40 HP
+            let enemyMaxHealth = enemyHealth;
+            let enemyAttack = Math.floor(Math.random() * 11) + 5; // 5-15 damage
+            
+            addToGameText(`⚔️ A wild ${enemyName} appears!`);
+            addToGameText(`${enemyName} Health: ${enemyHealth}/${enemyMaxHealth}`);
+            
+            function combatRound() {
+                if (enemyHealth <= 0) {
+                    // Victory!
+                    let expGain = Math.floor(Math.random() * 11) + 15; // 15-25 exp
+                    let goldGain = Math.floor(Math.random() * 11) + 5; // 5-15 gold
+                    
+                    addToGameText(`🎉 You defeated the ${enemyName}!`);
+                    addToGameText(`Gained ${expGain} experience and ${goldGain} gold!`);
+                    
+                    player.gainExperience(expGain);
+                    player.gold += goldGain;
+                    updateStats();
+                    
+                    setTimeout(showMainMenu, 3000);
+                    return;
+                }
+                
+                if (!player.isAlive()) {
+                    // Game Over
+                    addToGameText("💀 You have been defeated! Game Over!");
+                    setButtons(`<button onclick="location.reload()">Start New Game</button>`);
+                    return;
+                }
+                
+                // Combat options
+                setButtons(`
+                    <button onclick="playerAttack(${enemyHealth}, ${enemyMaxHealth}, ${enemyAttack}, '${enemyName}', combatRound)">⚔️ Attack</button>
+                    <button onclick="usePotion(${enemyHealth}, ${enemyMaxHealth}, ${enemyAttack}, '${enemyName}', combatRound)" ${player.inventory.includes('Health Potion') ? '' : 'disabled'}>🧪 Use Potion</button>
+                    <button onclick="tryRun('${enemyName}')">🏃 Run Away</button>
+                `);
+            }
+            
+            // Make combatRound available globally for the buttons
+            window.combatRound = combatRound;
+            window.playerAttack = function(enemyHealth, enemyMaxHealth, enemyAttack, enemyName, callback) {
+                let damage = player.attackEnemy();
+                enemyHealth -= damage;
+                addToGameText(`You deal ${damage} damage to the ${enemyName}!`);
+                
+                if (enemyHealth <= 0) {
+                    callback();
+                    return;
+                }
+                
+                addToGameText(`${enemyName} Health: ${enemyHealth}/${enemyMaxHealth}`);
+                
+                // Enemy attacks back
+                let enemyDamage = player.takeDamage(enemyAttack);
+                addToGameText(`The ${enemyName} attacks you for ${enemyDamage} damage!`);
+                updateStats();
+                
+                // Update the combat function with new enemy health
+                window.combatRound = function() {
+                    combatRound.call(this);
+                }.bind({enemyHealth});
+                
+                setTimeout(callback, 1500);
+            };
+            
+            window.usePotion = function(enemyHealth, enemyMaxHealth, enemyAttack, enemyName, callback) {
+                if (player.useHealthPotion()) {
+                    addToGameText("You used a Health Potion and recovered 30 health!");
+                    updateStats();
+                    
+                    // Enemy still attacks
+                    let enemyDamage = player.takeDamage(enemyAttack);
+                    addToGameText(`The ${enemyName} attacks you for ${enemyDamage} damage!`);
+                    updateStats();
+                    
+                    setTimeout(callback, 1500);
+                } else {
+                    addToGameText("You don't have any Health Potions!");
+                    setTimeout(callback, 1000);
+                }
+            };
+            
+            window.tryRun = function(enemyName) {
+                if (Math.random() < 0.5) {
+                    addToGameText("You successfully escaped!");
+                    setTimeout(showMainMenu, 1500);
+                } else {
+                    addToGameText("You couldn't escape!");
+                    setTimeout(combatRound, 1500);
+                }
+            };
+            
+            setTimeout(combatRound, 2000);
+        }
+        
+        function showStatus() {
+            setGameText(`
+                <strong>📊 CHARACTER STATUS</strong><br><br>
+                <strong>Name:</strong> ${player.name}<br>
+                <strong>Class:</strong> ${player.class}<br>
+                <strong>Level:</strong> ${player.level}<br>
+                <strong>Health:</strong> ${player.health}/${player.maxHealth}<br>
+                <strong>Experience:</strong> ${player.experience}/${player.experienceToNext}<br>
+                <strong>Gold:</strong> ${player.gold}<br>
+                <strong>Attack:</strong> ${player.attack}<br>
+                <strong>Defense:</strong> ${player.defense}
+            `);
+            
+            setButtons(`<button onclick="showMainMenu(); updateGameText()">Back</button>`);
+        }
+        
+        function showInventory() {
+            let inventoryText = "<strong>🎒 INVENTORY</strong><br><br>";
+            
+            if (player.inventory.length === 0) {
+                inventoryText += "Your inventory is empty.";
+            } else {
+                player.inventory.forEach((item, index) => {
+                    inventoryText += `${index + 1}. ${item}<br>`;
+                });
+            }
+            
+            setGameText(inventoryText);
+            setButtons(`<button onclick="showMainMenu(); updateGameText()">Back</button>`);
+        }
+        
+        function rest() {
+            let healAmount = Math.floor(player.maxHealth / 3);
+            player.heal(healAmount);
+            
+            addToGameText(`😴 You rest and recover ${healAmount} health.`);
+            addToGameText(`Current health: ${player.health}/${player.maxHealth}`);
+            
+            updateStats();
+            setTimeout(showMainMenu, 2000);
+        }
+        
+        // Helper functions for updating the display
+        
+        function setGameText(text) {
+            document.getElementById('game-text').innerHTML = text;
+        }
+        
+        function addToGameText(text) {
+            document.getElementById('game-text').innerHTML += '<br>' + text;
+            // Auto-scroll to bottom
+            let gameTextDiv = document.getElementById('game-text');
+            gameTextDiv.scrollTop = gameTextDiv.scrollHeight;
+        }
+        
+        function setButtons(html) {
+            document.getElementById('buttons').innerHTML = html;
+        }
+        
+        function updateStats() {
+            if (player) {
+                document.getElementById('player-info').innerHTML = 
+                    `${player.name} the ${player.class} | Level ${player.level} | Gold: ${player.gold} | Health: ${player.health}/${player.maxHealth}`;
+                
+                let healthPercent = (player.health / player.maxHealth) * 100;
+                document.getElementById('health-bar').style.width = healthPercent + '%';
+                
+                // Change health bar color based on health
+                let healthBar = document.getElementById('health-bar');
+                if (healthPercent > 60) {
+                    healthBar.style.backgroundColor = '#27ae60';
+                } else if (healthPercent > 30) {
+                    healthBar.style.backgroundColor = '#f39c12';
+                } else {
+                    healthBar.style.backgroundColor = '#e74c3c';
+                }
+            }
+        }
+        
+        function updateGameText() {
+            setGameText(`Level ${currentLevel} - The Dark Forest<br><br>
+                You stand in a mysterious forest filled with ancient magic and hidden dangers. 
+                Sunlight filters through the thick canopy above, creating dancing shadows on the forest floor.<br><br>
+                What would you like to do?`);
+        }
+    </script>
+</body>
+</html>
